@@ -1,9 +1,13 @@
+import os
+import sys
+from io import BytesIO
 import pygame
 import requests
-from io import BytesIO
 
-APIKEY_geocoder = "40d1649f-0493-4b70-98ba-98533de7710b"
-url_static = "http://geocode-maps.yandex.ru/1.x/?"
+KEYS = (pygame.K_PAGEDOWN, pygame.K_PAGEUP,
+        pygame.KEYUP, pygame.KEYDOWN,
+        pygame.K_LEFT, pygame.K_RIGHT)
+url_static = 'http://static-maps.yandex.ru/1.x/'
 
 
 class Map:
@@ -11,77 +15,43 @@ class Map:
         self.lon, self.lat = coord
         self.z = zoom
         self.layer = layer
-        self.size = size
-        self.map = self.update_map()
+        self.w, self.h = size
+        self.update_map()
 
     def update_map(self):
-        params = {'l': self.layer,
-                  'll': f'{self.lon},{self.lat}',
-                  'z': self.z,
-                  'size': '{},{}'.format(*self.size)}
-
+        params = {
+            'l': self.layer,
+            'll': f'{self.lon},{self.lat}',
+            'z': self.z,
+            'size': f'{self.w},{self.h}'
+        }
         response = requests.get(url_static, params)
         if not response:
-            raise RuntimeError('Ошибка выполнения запроса:\n' + response.url)
-
+            raise RuntimeError('Ошибка выполнения запроса')
         self.map = pygame.image.load(BytesIO(response.content))
 
-
-def get_geoobject(address):
-    geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
-
-    geocoder_params = {
-        "apikey": APIKEY_geocoder,
-        "geocode": address,
-        "format": "json"}
-
-    response = requests.get(geocoder_api_server, params=geocoder_params)
-
-    if not response:
-        return
-
-    json_response = response.json()
-    features = json_response["response"]["GeoObjectCollection"]["featureMember"]
-    toponym = features[0]['GeoObject'] if features else None
-    return toponym
-
-
-def get_coord(address):
-    toponym = get_geoobject(address)
-    if not toponym:
-        return
-    toponym_coodrinates = toponym["Point"]["pos"]
-    toponym_longitude, toponym_lattitude = toponym_coodrinates.split(" ")
-    return tuple(map(float, (toponym_longitude, toponym_lattitude)))
-
-
-def get_ll_spn(address):
-    toponym = get_geoobject(address)
-    if not toponym:
-        return
-    toponym_coodrinates = toponym["Point"]["pos"]
-    ll = ','.join(toponym_coodrinates.split(" "))
-    lc = toponym['boundedBy']['Envelope']['lowerCorner']
-    uc = toponym['boundedBy']['Envelope']['upperCorner']
-    lc_lo, lc_la = map(float, lc.split())
-    uc_lo, uc_la = map(float, uc.split())
-    spn = ','.join(map(str, (uc_lo - lc_lo, uc_la - lc_la)))
-    return ll, spn
+    def update(self, event):
+        if event.key == pygame.K_PAGEUP and self.z < 17:
+            self.z = min(17, self.z + 1)
+            self.update_map()
+        elif event.key == pygame.K_PAGEDOWN and self.z > 0:
+            self.z = max(0, self.z - 1)
+        if event.key in KEYS:
+            self.update_map()
 
 
 pygame.init()
-w, h = size = 650, 450
-screen = pygame.display.set_mode(size)
-
-coord = '60.107412,55.047049'.split(',')
+screen = pygame.display.set_mode((650, 450))
+coord = (38.2052612, 44.4192543)
 z = 17
-mapapp = Map(coord, z)
-
+map = Map(coord, z)
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
-    screen.blit(mapapp.map, (0, 0))
+        elif event.type == pygame.KEYDOWN:
+            map.update(event)
+    screen.blit(map.map, (0, 0))
     pygame.display.flip()
+pygame.quit()
