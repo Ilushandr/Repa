@@ -1,12 +1,16 @@
+import os
 from io import BytesIO
 import pygame
 import requests
+from PIL import Image
 
 KEYS = (pygame.KEYDOWN, pygame.K_PAGEUP, pygame.K_UP, pygame.K_DOWN,
-        pygame.K_LEFT, pygame.K_RIGHT)
+        pygame.K_LEFT, pygame.K_RIGHT, pygame.K_m, pygame.K_s,
+        pygame.K_h)
 url_static = 'https://static-maps.yandex.ru/1.x/'
 w, h = size = 650, 450
 delta = 180
+z = 15
 
 
 class Map:
@@ -28,7 +32,11 @@ class Map:
         response = requests.get(url_static, params)
         if not response:
             raise RuntimeError('Ошибка выполнения запроса')
-        self.map = pygame.image.load(BytesIO(response.content))
+
+        img = Image.open(BytesIO(response.content))
+        img.save('image.png', 'png')
+        self.map = pygame.image.load('image.png')
+        os.remove('image.png')
 
     def update(self, event):
         lon_delta = delta / (2 ** self.z)
@@ -45,6 +53,12 @@ class Map:
             self.lat += lat_delta
         elif event.key == pygame.K_DOWN and abs(self.lat - lat_delta) < 85:
             self.lat -= lat_delta
+        elif event.key == pygame.K_m:
+            self.layer = 'map'
+        elif event.key == pygame.K_s:
+            self.layer = 'sat'
+        elif event.key == pygame.K_h:
+            self.layer = 'sat,skl'
         if event.key in KEYS:
             mapapp.update_map()
 
@@ -52,7 +66,6 @@ class Map:
 pygame.init()
 screen = pygame.display.set_mode((650, 450))
 coord = (38.2052612, 44.4192543)
-z = 0
 mapapp = Map(coord, z)
 
 running = True
