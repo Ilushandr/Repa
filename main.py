@@ -5,9 +5,11 @@ import pygame
 import requests
 
 KEYS = (pygame.K_PAGEDOWN, pygame.K_PAGEUP,
-        pygame.KEYUP, pygame.KEYDOWN,
+        pygame.K_UP, pygame.K_DOWN,
         pygame.K_LEFT, pygame.K_RIGHT)
 url_static = 'http://static-maps.yandex.ru/1.x/'
+lon_delta = 300
+lat_delta = 100
 
 
 class Map:
@@ -31,11 +33,18 @@ class Map:
         self.map = pygame.image.load(BytesIO(response.content))
 
     def update(self, event):
-        if event.key == pygame.K_PAGEUP and self.z < 17:
+        if event.key == pygame.K_PAGEUP:
             self.z = min(17, self.z + 1)
-            self.update_map()
-        elif event.key == pygame.K_PAGEDOWN and self.z > 0:
+        elif event.key == pygame.K_PAGEDOWN:
             self.z = max(0, self.z - 1)
+        elif event.key == pygame.K_RIGHT:
+            self.lon = ((self.lon + 180 + lon_delta * 2 ** -self.z) % 360 - 180)
+        elif event.key == pygame.K_LEFT:
+            self.lon = ((self.lon + 180 - lon_delta * 2 ** -self.z) % 360 - 180)
+        elif event.key == pygame.K_UP:
+            self.lat = min(85, self.lat + lat_delta * 2 ** -self.z)
+        elif event.key == pygame.K_DOWN:
+            self.lat = max(-85, self.lat - lat_delta * 2 ** -self.z)
         if event.key in KEYS:
             self.update_map()
 
@@ -43,7 +52,7 @@ class Map:
 pygame.init()
 screen = pygame.display.set_mode((650, 450))
 coord = (38.2052612, 44.4192543)
-z = 17
+z = 0
 map = Map(coord, z)
 running = True
 while running:
