@@ -24,15 +24,22 @@ class Map:
         self.update_map()
 
     def update_map(self):
-        self.params = {
-            'l': self.layer,
-            'll': f'{self.lon},{self.lat}',
-            'z': self.z,
-            'size': f'{self.w},{self.h}',
-            'pt': None
-        }
-        if self.find:
-            self.params['pt'] = f'{self.pt_lon},{self.pt_lat},flag'
+        if not self.find:
+            self.params = {
+                'l': self.layer,
+                'll': f'{self.lon},{self.lat}',
+                'z': self.z,
+                'size': f'{self.w},{self.h}',
+                'pt': None
+            }
+        else:
+            self.params = {
+                'l': self.layer,
+                'll': f'{self.lon},{self.lat}',
+                'z': self.z,
+                'size': f'{self.w},{self.h}',
+                'pt': f'{self.pt_lon},{self.pt_lat},flag'
+            }
         response = requests.get(url_static, self.params)
         if not response:
             raise RuntimeError('Ошибка выполнения запроса')
@@ -59,7 +66,6 @@ class Map:
             self.find = True
             if text_box.get_text():
                 self.get_find(text_box.get_text())
-                self.pt_lon, self.pt_lat = map(float, self.params["ll"].split(','))
                 self.params['pt'] = f'{self.pt_lon},{self.pt_lat},flag'
         if not text_box.is_focused:
             if event.key == pygame.K_m:
@@ -82,8 +88,6 @@ class Map:
         toponym_address = toponym["Point"]["pos"]
         x, y = map(float, toponym_address.split())
         self.pt_lon, self.pt_lat = self.lon, self.lat = x, y
-        self.update_map()
-
 
 
 pygame.init()
@@ -93,6 +97,9 @@ z = 15
 manager = pygame_gui.UIManager((650, 450))
 text_box = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect((10, 15), (200, 50)),
                                                manager=manager)
+button = pygame_gui.elements.UIButton(text='Сброс поиска',
+                                      relative_rect=pygame.Rect((210, 15), (100, 30)),
+                                      manager=manager)
 maps = Map(coord, z)
 running = True
 clock = pygame.time.Clock()
@@ -103,6 +110,12 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:
             maps.update(event)
+            pygame.event.clear()
+        elif event.type == pygame.USEREVENT:
+            if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element == button:
+                    maps.find = False
+                    maps.update_map()
         manager.process_events(event)
     manager.update(time_delta)
     screen.blit(maps.map, (0, 0))
