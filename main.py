@@ -29,10 +29,10 @@ class Map:
             'll': f'{self.lon},{self.lat}',
             'z': self.z,
             'size': f'{self.w},{self.h}',
-            'pt': f'{self.lon},{self.lat},flag'
+            'pt': None
         }
-        if not self.find:
-            self.params['pt'] = None
+        if self.find:
+            self.params['pt'] = f'{self.pt_lon},{self.pt_lat},flag'
         response = requests.get(url_static, self.params)
         if not response:
             raise RuntimeError('Ошибка выполнения запроса')
@@ -59,7 +59,8 @@ class Map:
             self.find = True
             if text_box.get_text():
                 self.get_find(text_box.get_text())
-                self.params['pt'] = f'{self.params["ll"]},flag'
+                self.pt_lon, self.pt_lat = map(float, self.params["ll"].split(','))
+                self.params['pt'] = f'{self.pt_lon},{self.pt_lat},flag'
         if not text_box.is_focused:
             if event.key == pygame.K_m:
                 self.layer = 'map'
@@ -80,7 +81,7 @@ class Map:
         toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
         toponym_address = toponym["Point"]["pos"]
         x, y = map(float, toponym_address.split())
-        self.lon, self.lat = x, y
+        self.pt_lon, self.pt_lat = self.lon, self.lat = x, y
         self.update_map()
 
 
