@@ -1,12 +1,13 @@
 import os
 from io import BytesIO
 import pygame
+import pygame_gui
 import requests
 from PIL import Image
 
-KEYS = (pygame.KEYDOWN, pygame.K_PAGEUP, pygame.K_UP, pygame.K_DOWN,
-        pygame.K_LEFT, pygame.K_RIGHT, pygame.K_m, pygame.K_s,
-        pygame.K_h)
+KEYS = (pygame.KEYDOWN, pygame.K_PAGEUP, pygame.K_PAGEDOWN, pygame.K_UP, pygame.K_DOWN,
+        pygame.K_LEFT, pygame.K_RIGHT, pygame.K_m, pygame.K_s, pygame.K_h, pygame.K_RETURN)
+APIKEY_GEOCODER = "40d1649f-0493-4b70-98ba-98533de7710b"
 url_static = 'https://static-maps.yandex.ru/1.x/'
 w, h = size = 650, 450
 delta = 180
@@ -16,6 +17,7 @@ z = 15
 class Map:
     def __init__(self, coord, zoom, layer='map', size=size):
         self.lon, self.lat = coord
+        self.flag_lon, self.flag_lat = 0, 0
         self.z = zoom
         self.layer = layer
         self.w, self.h = size
@@ -27,7 +29,8 @@ class Map:
             'l': self.layer,
             'll': f'{self.lon},{self.lat}',
             'z': self.z,
-            'size': f'{self.w},{self.h}'
+            'size': f'{self.w},{self.h}',
+            'pt': f'{self.flag_lon},{self.flag_lat},flag'
         }
         response = requests.get(url_static, params)
         if not response:
@@ -37,6 +40,13 @@ class Map:
         img.save('image.png', 'png')
         self.map = pygame.image.load('image.png')
         os.remove('image.png')
+
+    def update_params(self):
+        address = search_box.text
+        if address:
+            ll, spn = self.get_ll_spn(address)
+            self.lon, self.lat = list(map(float, ll.split(',')))
+            self.flag_lon, self.flag_lat = self.lon, self.lat
 
     def update(self, event):
         lon_delta = delta / (2 ** self.z)
@@ -59,8 +69,48 @@ class Map:
             self.layer = 'sat'
         elif event.key == pygame.K_h:
             self.layer = 'sat,skl'
+        elif event.key == pygame.K_RETURN:
+            self.update_params()
         if event.key in KEYS:
             mapapp.update_map()
+
+    def get_geocode(self, address):
+        geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
+
+        geocoder_params = {
+            "apikey": APIKEY_GEOCODER,
+            "geocode": address,
+            "format": "json"}
+
+        response = requests.get(geocoder_api_server, params=geocoder_params)
+
+        if not response:
+            return
+
+        json_response = response.json()
+        features = json_response["response"]["GeoObjectCollection"][
+            "featureMember"]
+        toponym = features[0]["GeoObject"] if features else None
+        return toponym
+
+    def get_coords(self, address):
+        toponym = self.get_geocode(address)
+        toponym_coodrinates = toponym["Point"]["pos"]
+        toponym_longitude, toponym_lattitude = toponym_coodrinates.split(" ")
+        return tuple(map(float, (toponym_longitude, toponym_lattitude)))
+
+    def get_ll_spn(self, address):
+        toponym = self.get_geocode(address)
+        if not toponym:
+            return
+        toponym_coodrinates = toponym["Point"]["pos"]
+        ll = ','.join(toponym_coodrinates.split(" "))
+        lc = toponym['boundedBy']["Envelope"]["lowerCorner"]
+        uc = toponym['boundedBy']["Envelope"]["upperCorner"]
+        lc_lo, lc_la = map(float, lc.split())
+        uc_lo, uc_la = map(float, uc.split())
+        spn = f'{(uc_lo - lc_lo)},{(uc_la - lc_la)}'
+        return ll, spn
 
 
 pygame.init()
@@ -68,13 +118,27 @@ screen = pygame.display.set_mode((650, 450))
 coord = (38.2052612, 44.4192543)
 mapapp = Map(coord, z)
 
+clock = pygame.time.Clock()
+FPS = 60
+
+manager = pygame_gui.UIManager((650, 450))
+search_box = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect(0, 0, 300, 100),
+                                                 manager=manager)
+
+search_box.show()
 running = True
 while running:
+    time_delta = clock.tick(60) / 1000.0
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
             mapapp.update(event)
+            pygame.event.clear()
+        manager.process_events(event)
+
+    manager.update(time_delta)
 
     screen.blit(mapapp.map, (0, 0))
+    manager.draw_ui(screen)
     pygame.display.flip()
