@@ -74,6 +74,10 @@ class Map:
         if event.key in KEYS:
             mapapp.update_map()
 
+    def reset_pt(self):
+        self.flag_lat, self.flag_lon = 0, 0
+        mapapp.update_map()
+
     def get_geocode(self, address):
         geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
 
@@ -124,6 +128,8 @@ FPS = 60
 manager = pygame_gui.UIManager((650, 450))
 search_box = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect(0, 0, 300, 100),
                                                  manager=manager)
+reset_pt_btn = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(310, 0, 150, 30),
+                                            text='Сбросить точку', manager=manager)
 
 search_box.show()
 running = True
@@ -135,6 +141,10 @@ while running:
         elif event.type == pygame.KEYDOWN:
             mapapp.update(event)
             pygame.event.clear()
+        if event.type == pygame.USEREVENT:
+            if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element == reset_pt_btn:
+                    mapapp.reset_pt()
         manager.process_events(event)
 
     manager.update(time_delta)
