@@ -6,7 +6,8 @@ import requests
 from PIL import Image
 
 KEYS = (pygame.KEYDOWN, pygame.K_PAGEUP, pygame.K_PAGEDOWN, pygame.K_UP, pygame.K_DOWN,
-        pygame.K_LEFT, pygame.K_RIGHT, pygame.K_m, pygame.K_s, pygame.K_h, pygame.K_RETURN)
+        pygame.K_LEFT, pygame.K_RIGHT, pygame.K_m, pygame.K_s, pygame.K_h, pygame.K_RETURN,
+        pygame.K_z, pygame.K_x)
 APIKEY_GEOCODER = "40d1649f-0493-4b70-98ba-98533de7710b"
 url_static = 'https://static-maps.yandex.ru/1.x/'
 w, h = size = 650, 450
@@ -43,17 +44,22 @@ class Map:
 
     def update_params(self):
         address = search_box.text
-        if address:
+        try:
             ll, spn = self.get_ll_spn(address)
             self.lon, self.lat = list(map(float, ll.split(',')))
             self.flag_lon, self.flag_lat = self.lon, self.lat
 
+            toponym = self.get_geocode(address)
+            search_box.set_text(toponym["name"])
+        except TypeError:
+            search_box.set_text('Неверный ввод')
+
     def update(self, event):
         lon_delta = delta / (2 ** self.z)
         lat_delta = delta / (2 ** self.z) / 2
-        if event.key == pygame.K_PAGEDOWN:
+        if event.key in (pygame.K_PAGEDOWN, pygame.K_z):
             self.z = max(0, self.z - 1)
-        elif event.key == pygame.K_PAGEUP:
+        elif event.key in (pygame.K_PAGEUP, pygame.K_x):
             self.z = min(20, self.z + 1)
         elif event.key == pygame.K_LEFT:
             self.lon = (self.lon + 180 - lon_delta) % 360 - 180
@@ -63,12 +69,13 @@ class Map:
             self.lat += lat_delta
         elif event.key == pygame.K_DOWN and abs(self.lat - lat_delta) < 85:
             self.lat -= lat_delta
-        elif event.key == pygame.K_m:
-            self.layer = 'map'
-        elif event.key == pygame.K_s:
-            self.layer = 'sat'
-        elif event.key == pygame.K_h:
-            self.layer = 'sat,skl'
+        elif pygame.key.get_pressed()[pygame.K_LCTRL]:
+            if event.key == pygame.K_m:
+                self.layer = 'map'
+            elif event.key == pygame.K_s:
+                self.layer = 'sat'
+            elif event.key == pygame.K_h:
+                self.layer = 'sat,skl'
         elif event.key == pygame.K_RETURN:
             self.update_params()
         if event.key in KEYS:
@@ -76,6 +83,7 @@ class Map:
 
     def reset_pt(self):
         self.flag_lat, self.flag_lon = 0, 0
+        search_box.set_text('')
         mapapp.update_map()
 
     def get_geocode(self, address):
