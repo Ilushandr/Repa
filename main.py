@@ -23,6 +23,7 @@ class Map:
         self.layer = layer
         self.w, self.h = size
         self.map = None
+        self.index_on = True
         self.update_map()
 
     def update_map(self):
@@ -50,7 +51,16 @@ class Map:
             self.flag_lon, self.flag_lat = self.lon, self.lat
 
             toponym = self.get_geocode(address)
-            search_box.set_text(toponym["name"])
+            address = toponym["name"]
+            if self.index_on:
+                index = 'не найдено'
+                toponym_address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]
+                if "postal_code" in toponym_address:
+                    index = toponym_address["postal_code"]
+                search_box.set_text(f"{address}, индекс: {index}")
+            else:
+                search_box.set_text(f"{address}")
+
         except TypeError:
             search_box.set_text('Неверный ввод')
 
@@ -81,10 +91,15 @@ class Map:
         if event.key in KEYS:
             mapapp.update_map()
 
-    def reset_pt(self):
+    def update_point(self):
         self.flag_lat, self.flag_lon = 0, 0
         search_box.set_text('')
         mapapp.update_map()
+
+    def update_index(self):
+        status = ['off', 'on']
+        self.index_on = not self.index_on
+        index_btn.set_text(f'Индекс: {status[int(self.index_on)]}')
 
     def get_geocode(self, address):
         geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
@@ -134,10 +149,12 @@ clock = pygame.time.Clock()
 FPS = 60
 
 manager = pygame_gui.UIManager((650, 450))
-search_box = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect(0, 0, 300, 100),
+search_box = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect(0, 0, 490, 100),
                                                  manager=manager)
-reset_pt_btn = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(310, 0, 150, 30),
+reset_pt_btn = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(495, 0, 150, 30),
                                             text='Сбросить точку', manager=manager)
+index_btn = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(495, 32, 150, 30),
+                                         text='Индекс: on', manager=manager)
 
 search_box.show()
 running = True
@@ -152,7 +169,9 @@ while running:
         if event.type == pygame.USEREVENT:
             if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == reset_pt_btn:
-                    mapapp.reset_pt()
+                    mapapp.update_point()
+                elif event.ui_element == index_btn:
+                    mapapp.update_index()
         manager.process_events(event)
 
     manager.update(time_delta)
