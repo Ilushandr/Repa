@@ -22,8 +22,11 @@ class Map:
         self.z = zoom
         self.layer = layer
         self.w, self.h = size
-        self.map = None
         self.index_on = True
+        self.map = None
+        self.address = None
+        self.index = None
+        self.search_text_elements = None
         self.update_map()
 
     def update_map(self):
@@ -43,7 +46,7 @@ class Map:
         self.map = pygame.image.load('image.png')
         os.remove('image.png')
 
-    def update_params(self):
+    def update_location(self):
         address = search_box.text
         try:
             ll, spn = self.get_ll_spn(address)
@@ -51,18 +54,34 @@ class Map:
             self.flag_lon, self.flag_lat = self.lon, self.lat
 
             toponym = self.get_geocode(address)
-            address = toponym["name"]
-            if self.index_on:
-                index = 'не найдено'
-                toponym_address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]
-                if "postal_code" in toponym_address:
-                    index = toponym_address["postal_code"]
-                search_box.set_text(f"{address}, индекс: {index}")
-            else:
-                search_box.set_text(f"{address}")
+            self.address = toponym["name"]
+            self.index = 'не найдено'
+            toponym_address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]
+
+            if "postal_code" in toponym_address:
+                self.index = toponym_address["postal_code"]
+
+            self.update_text()
 
         except TypeError:
             search_box.set_text('Неверный ввод')
+
+    def update_text(self):
+        if self.index_on:
+            search_box.set_text(f'{self.address}, индекс: {self.index}')
+        else:
+            search_box.set_text(self.address)
+
+    def update_point(self):
+        self.flag_lat, self.flag_lon = 0, 0
+        search_box.set_text('')
+        mapapp.update_map()
+
+    def update_index(self):
+        status = ['off', 'on']
+        self.index_on = not self.index_on
+        index_btn.set_text(f'Индекс: {status[int(self.index_on)]}')
+        self.update_text()
 
     def update(self, event):
         lon_delta = delta / (2 ** self.z)
@@ -87,19 +106,9 @@ class Map:
             elif event.key == pygame.K_h:
                 self.layer = 'sat,skl'
         elif event.key == pygame.K_RETURN:
-            self.update_params()
+            self.update_location()
         if event.key in KEYS:
             mapapp.update_map()
-
-    def update_point(self):
-        self.flag_lat, self.flag_lon = 0, 0
-        search_box.set_text('')
-        mapapp.update_map()
-
-    def update_index(self):
-        status = ['off', 'on']
-        self.index_on = not self.index_on
-        index_btn.set_text(f'Индекс: {status[int(self.index_on)]}')
 
     def get_geocode(self, address):
         geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
