@@ -54,7 +54,7 @@ class Map:
             self.flag_lon, self.flag_lat = self.lon, self.lat
 
             toponym = self.get_geocode(address)
-            self.address = toponym["name"]
+            self.address = toponym["metaDataProperty"]["GeocoderMetaData"]["text"]
             self.index = 'не найдено'
             toponym_address = toponym["metaDataProperty"]["GeocoderMetaData"]["Address"]
 
@@ -68,13 +68,16 @@ class Map:
 
     def update_text(self):
         if self.index_on:
-            search_box.set_text(f'{self.address}, индекс: {self.index}')
+            search_box.set_text(self.address)
+            index_box.set_text(f'Индекс: {self.index}')
         else:
             search_box.set_text(self.address)
+            index_box.set_text('')
 
     def update_point(self):
         self.flag_lat, self.flag_lon = 0, 0
         search_box.set_text('')
+        index_box.set_text('')
         mapapp.update_map()
 
     def update_index(self):
@@ -124,6 +127,7 @@ class Map:
             return
 
         json_response = response.json()
+        # print(json_response, file=open('json_test.json', mode='w', encoding='utf-8'))
         features = json_response["response"]["GeoObjectCollection"][
             "featureMember"]
         toponym = features[0]["GeoObject"] if features else None
@@ -143,6 +147,7 @@ class Map:
         ll = ','.join(toponym_coodrinates.split(" "))
         lc = toponym['boundedBy']["Envelope"]["lowerCorner"]
         uc = toponym['boundedBy']["Envelope"]["upperCorner"]
+        print(lc, uc)
         lc_lo, lc_la = map(float, lc.split())
         uc_lo, uc_la = map(float, uc.split())
         spn = f'{(uc_lo - lc_lo)},{(uc_la - lc_la)}'
@@ -164,6 +169,8 @@ reset_pt_btn = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(495, 0, 15
                                             text='Сбросить точку', manager=manager)
 index_btn = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(495, 32, 150, 30),
                                          text='Индекс: on', manager=manager)
+index_box = pygame_gui.elements.UILabel(relative_rect=pygame.Rect(328, 34, 160, 26),
+                                        text='', manager=manager)
 
 search_box.show()
 running = True
